@@ -10,6 +10,14 @@ public class DepartmentKey {
         this.department = department;
     }
 
+    public String getFaculty() {
+        return faculty;
+    }
+
+    public String getDepartment() {
+        return department;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -27,4 +35,5 @@ public class DepartmentKey {
         result = 31 * result + (department != null ? department.hashCode() : 0);
         return result;
     }
+
 }

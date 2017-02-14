@@ -1,11 +1,25 @@
 package com.ultimaspin.ignite;
 
+import org.apache.ignite.cache.affinity.AffinityKeyMapped;
+
 public class StudentKey {
 
     private final int studentId;
 
-    public StudentKey(int studentId) {
+    @AffinityKeyMapped
+    private final DepartmentKey departmentKey;
+
+    public StudentKey(int studentId, DepartmentKey departmentKey) {
         this.studentId = studentId;
+        this.departmentKey = departmentKey;
+    }
+
+    public int getStudentId() {
+        return studentId;
+    }
+
+    public DepartmentKey getDepartmentKey() {
+        return this.departmentKey;
     }
 
     @Override

@@ -6,4 +6,9 @@ public class Department {
     public Department(String title) {
         this.title = title;
     }
+
+    @Override
+    public String toString() {
+        return "Department of " + title;
+    }
 }
