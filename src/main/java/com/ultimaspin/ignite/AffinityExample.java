@@ -65,32 +65,32 @@ public class AffinityExample {
         departmentCache.putAll(DEPARTMENTS);
 
         Affinity<StudentKey> studentAffinity = ignite.affinity("studentCache");
-        Map<ClusterNode, List<StudentKey>> nodeToStudents = STUDENTS.keySet()
+        Map<ClusterNode, Set<StudentKey>> nodeToStudents = STUDENTS.keySet()
                 .stream()
                 .map(key -> new AbstractMap.SimpleEntry<>(key, studentAffinity.mapKeyToNode(key)))
                 .collect(Collectors.groupingBy(
                         Map.Entry::getValue,
-                        Collectors.mapping(Map.Entry::getKey, Collectors.toList()))
+                        Collectors.mapping(Map.Entry::getKey, Collectors.toSet()))
                 );
 
         Affinity<DepartmentKey> departmentAffinity = ignite.affinity("departmentCache");
-        Map<ClusterNode, List<DepartmentKey>> nodeToDepartments = DEPARTMENTS.keySet()
+        Map<ClusterNode, Set<DepartmentKey>> nodeToDepartments = DEPARTMENTS.keySet()
                 .stream()
                 .map(key -> new AbstractMap.SimpleEntry<>(key, departmentAffinity.mapKeyToNode(key)))
                 .collect(Collectors.groupingBy(
                         Map.Entry::getValue,
-                        Collectors.mapping(Map.Entry::getKey, Collectors.toList()))
+                        Collectors.mapping(Map.Entry::getKey, Collectors.toSet()))
                 );
 
-        nodeToStudents.forEach((node, studentKeys) -> {
-            System.out.println("=== Node (" + node.id() + ") ===");
-            studentKeys.forEach(key -> System.out.println(studentCache.get(key).getFullName()));
-        });
+        Set<ClusterNode> nodeKeys = new HashSet<>();
+        nodeKeys.addAll(nodeToStudents.keySet());
+        nodeKeys.addAll(nodeToDepartments.keySet());
+        nodeKeys.stream().map(node -> {
+            Set<DepartmentKey> departmentKeys = nodeToDepartments.getOrDefault(node, Collections.emptySet());
+            Set<StudentKey> studentKeys = nodeToStudents.getOrDefault(node, Collections.emptySet());
+            return new NodeData(node.id().toString(), studentCache.getAll(studentKeys), departmentCache.getAll(departmentKeys));
+        }).forEach(nodeData -> nodeData.print(System.out));
 
-        nodeToDepartments.forEach((node, departmentKeys) -> {
-            System.out.println("=== Node (" + node.id() + ") ===");
-            departmentKeys.forEach(key -> System.out.println(departmentCache.get(key)));
-        });
         ignite.close();
     }
 
