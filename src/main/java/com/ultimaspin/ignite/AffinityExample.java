@@ -8,10 +8,7 @@ import org.apache.ignite.cache.affinity.Affinity;
 import org.apache.ignite.cluster.ClusterNode;
 import org.apache.ignite.configuration.CacheConfiguration;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class AffinityExample {
@@ -32,7 +29,7 @@ public class AffinityExample {
         put(DepartmentKeys.MEDICINE, new Department("Medicine"));
     }};
 
-    static class StudentKeys {
+    private static class StudentKeys {
         static final StudentKey STUDENT_1 = new StudentKey(1, DepartmentKeys.MEDICINE);
         static final StudentKey STUDENT_2 = new StudentKey(2, DepartmentKeys.MATERIALS);
         static final StudentKey STUDENT_3 = new StudentKey(3, DepartmentKeys.MATHEMATICS);
@@ -40,7 +37,7 @@ public class AffinityExample {
         static final StudentKey STUDENT_5 = new StudentKey(5, DepartmentKeys.COMPUTING);
     }
 
-    static final Map<StudentKey, Student> STUDENTS = new HashMap<StudentKey, Student>() {{
+    private static final Map<StudentKey, Student> STUDENTS = new HashMap<StudentKey, Student>() {{
        put(StudentKeys.STUDENT_1, new Student("Charlie", "Brown"));
        put(StudentKeys.STUDENT_2, new Student("SpongeBob", "SquarePants"));
        put(StudentKeys.STUDENT_3, new Student("Top", "Cat"));
@@ -68,41 +65,32 @@ public class AffinityExample {
         departmentCache.putAll(DEPARTMENTS);
 
         Affinity<StudentKey> studentAffinity = ignite.affinity("studentCache");
-        Map<StudentKey, ClusterNode> studentLocations = STUDENTS.keySet()
+        Map<ClusterNode, List<StudentKey>> nodeToStudents = STUDENTS.keySet()
                 .stream()
-                .collect(Collectors.toMap(k -> k, studentAffinity::mapKeyToNode));
+                .map(key -> new AbstractMap.SimpleEntry<>(key, studentAffinity.mapKeyToNode(key)))
+                .collect(Collectors.groupingBy(
+                        Map.Entry::getValue,
+                        Collectors.mapping(Map.Entry::getKey, Collectors.toList()))
+                );
 
         Affinity<DepartmentKey> departmentAffinity = ignite.affinity("departmentCache");
-        Map<DepartmentKey, ClusterNode> departmentLocations = DEPARTMENTS.keySet()
+        Map<ClusterNode, List<DepartmentKey>> nodeToDepartments = DEPARTMENTS.keySet()
                 .stream()
-                .collect(Collectors.toMap(k -> k, departmentAffinity::mapKeyToNode));
-
-        Map<ClusterNode, List<StudentKey>> nodeToStudents = new HashMap<>();
-        studentLocations.forEach((studentKey, node) -> {
-            if (!nodeToStudents.containsKey(node)) {
-                nodeToStudents.put(node, new ArrayList<>());
-            }
-            nodeToStudents.get(node).add(studentKey);
-        });
+                .map(key -> new AbstractMap.SimpleEntry<>(key, departmentAffinity.mapKeyToNode(key)))
+                .collect(Collectors.groupingBy(
+                        Map.Entry::getValue,
+                        Collectors.mapping(Map.Entry::getKey, Collectors.toList()))
+                );
 
         nodeToStudents.forEach((node, studentKeys) -> {
             System.out.println("=== Node (" + node.id() + ") ===");
             studentKeys.forEach(key -> System.out.println(studentCache.get(key).getFullName()));
         });
 
-        Map<ClusterNode, List<DepartmentKey>> nodeToDepartments = new HashMap<>();
-        departmentLocations.forEach((departmentKey, node) -> {
-            if (!nodeToDepartments.containsKey(node)) {
-                nodeToDepartments.put(node, new ArrayList<>());
-            }
-            nodeToDepartments.get(node).add(departmentKey);
-        });
-
         nodeToDepartments.forEach((node, departmentKeys) -> {
             System.out.println("=== Node (" + node.id() + ") ===");
             departmentKeys.forEach(key -> System.out.println(departmentCache.get(key)));
         });
-
         ignite.close();
     }
 
